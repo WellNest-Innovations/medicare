@@ -30,7 +30,6 @@ def decode_token(
 ) -> TokenPayload:
     token = credentials.credentials
     try:
-        # Inspect the unverified header to determine signing algorithm
         unverified_header = jwt.get_unverified_header(token)
         alg = unverified_header.get("alg", "HS256")
 
@@ -42,7 +41,6 @@ def decode_token(
                 options={"verify_aud": False},
             )
         else:
-            # ES256 / RS256 — verify against Supabase's public JWKS
             jwks = get_jwks()
             kid = unverified_header.get("kid")
             key = next((k for k in jwks["keys"] if k["kid"] == kid), None)
