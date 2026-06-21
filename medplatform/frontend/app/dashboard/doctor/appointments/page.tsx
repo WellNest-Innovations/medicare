@@ -14,13 +14,25 @@ export default function DoctorAppointmentsPage() {
 
   useEffect(() => {
     async function load() {
-      const appts = await appointmentsApi.getMy() as Appointment[];
+      const appts = (await appointmentsApi.getMy()) as Appointment[];
       setAppts(appts);
       const ids = [...new Set(appts.map((a) => a.patient_id))];
       if (ids.length) {
-        const { data } = await supabase.from("profiles").select("id, full_name, phone_number").in("id", ids);
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone_number")
+          .in("id", ids);
+
         const map: Record<string, Profile> = {};
-        (data || []).forEach((p: Profile) => { map[p.id] = p; });
+        (data || []).forEach(
+          (p: {
+            id: string;
+            full_name: string;
+            phone_number: string | null;
+          }) => {
+            map[p.id] = p as Profile;
+          },
+        );
         setPatientMap(map);
       }
       setLoading(false);
@@ -45,7 +57,7 @@ export default function DoctorAppointmentsPage() {
 
   function dateLabel(dateStr: string) {
     const d = new Date(dateStr);
-    if (isToday(d))    return "Today";
+    if (isToday(d)) return "Today";
     if (isTomorrow(d)) return "Tomorrow";
     return format(d, "EEE, MMM d");
   }
@@ -64,7 +76,9 @@ export default function DoctorAppointmentsPage() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              filter === f ? "bg-brand-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+              filter === f
+                ? "bg-brand-600 text-white"
+                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
             }`}
           >
             {f === "TODAY" ? "Today" : f === "UPCOMING" ? "Upcoming" : "All"}
@@ -86,25 +100,40 @@ export default function DoctorAppointmentsPage() {
             return (
               <div key={a.id} className="card flex items-center gap-4">
                 <div className="w-14 h-14 bg-brand-50 rounded-xl flex flex-col items-center justify-center flex-shrink-0 text-center">
-                  <span className="text-lg font-bold text-brand-700 leading-none">{format(new Date(a.scheduled_at), "d")}</span>
-                  <span className="text-xs text-brand-400">{format(new Date(a.scheduled_at), "MMM")}</span>
+                  <span className="text-lg font-bold text-brand-700 leading-none">
+                    {format(new Date(a.scheduled_at), "d")}
+                  </span>
+                  <span className="text-xs text-brand-400">
+                    {format(new Date(a.scheduled_at), "MMM")}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900">{patient?.full_name || "Patient"}</p>
-                    <span className="text-xs text-gray-400">{dateLabel(a.scheduled_at)}</span>
+                    <p className="font-semibold text-gray-900">
+                      {patient?.full_name || "Patient"}
+                    </p>
+                    <span className="text-xs text-gray-400">
+                      {dateLabel(a.scheduled_at)}
+                    </span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-0.5 truncate">{a.chief_complaint}</p>
+                  <p className="text-sm text-gray-600 mt-0.5 truncate">
+                    {a.chief_complaint}
+                  </p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <Clock className="w-3 h-3" />{format(new Date(a.scheduled_at), "h:mm a")} · {a.duration_mins}min
+                      <Clock className="w-3 h-3" />
+                      {format(new Date(a.scheduled_at), "h:mm a")} ·{" "}
+                      {a.duration_mins}min
                     </span>
                     <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <MapPin className="w-3 h-3" />{a.location}
+                      <MapPin className="w-3 h-3" />
+                      {a.location}
                     </span>
                   </div>
                 </div>
-                <span className={`badge ${STATUS_COLORS[a.status]}`}>{a.status}</span>
+                <span className={`badge ${STATUS_COLORS[a.status]}`}>
+                  {a.status}
+                </span>
               </div>
             );
           })}
