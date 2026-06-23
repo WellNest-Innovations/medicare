@@ -1,20 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+  content: ["./app/**/*.{js,ts,jsx,tsx,mdx}", "./components/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50:  "#eff6ff",
-          100: "#dbeafe",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          900: "#1e3a8a",
-        },
+        surface: { base:"#0F1A13", raised:"#172012", card:"#1E2D1A", input:"#243320", hover:"#2A3D25" },
+        border:  { subtle:"#2E4228", strong:"#3D5934" },
+        content: { primary:"#E8F0E4", secondary:"#9DB896", muted:"#5E7A57" },
+        accent:  { green:"#4ADE80", amber:"#FCD34D", red:"#F87171", blue:"#60A5FA", teal:"#34D399" },
       },
     },
   },

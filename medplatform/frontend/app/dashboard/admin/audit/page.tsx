@@ -2,118 +2,233 @@
 import { useEffect, useState, useCallback } from "react";
 import { adminApi } from "@/lib/api";
 import { AuditLog } from "@/types";
-import { ShieldCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
-const ACTION_OPTIONS = [
-  "ALL", "LOGIN", "LOGOUT", "RECORD_VIEW", "RECORD_CREATE",
-  "VITALS_SUBMIT", "APPOINTMENT_CREATE", "ROLE_ASSIGN",
-  "BREAK_GLASS_ACCESS", "UNAUTHORIZED_ATTEMPT",
-];
-
-const ACTION_COLORS: Record<string, string> = {
-  LOGIN:                "bg-green-50 text-green-700",
-  LOGOUT:               "bg-gray-50 text-gray-600",
-  RECORD_VIEW:          "bg-blue-50 text-blue-700",
-  RECORD_CREATE:        "bg-purple-50 text-purple-700",
-  VITALS_SUBMIT:        "bg-cyan-50 text-cyan-700",
-  APPOINTMENT_CREATE:   "bg-indigo-50 text-indigo-700",
-  ROLE_ASSIGN:          "bg-yellow-50 text-yellow-700",
-  BREAK_GLASS_ACCESS:   "bg-orange-50 text-orange-700",
-  UNAUTHORIZED_ATTEMPT: "bg-red-50 text-red-700",
+const ACTION_STYLES: Record<string, string> = {
+  LOGIN: "badge-green",
+  LOGOUT: "badge-muted",
+  RECORD_VIEW: "badge-blue",
+  RECORD_CREATE: "badge-blue",
+  VITALS_SUBMIT: "badge-green",
+  APPOINTMENT_CREATE: "badge-blue",
+  ROLE_ASSIGN: "badge-amber",
+  BREAK_GLASS_ACCESS: "badge-red",
+  UNAUTHORIZED_ATTEMPT: "badge-red",
 };
 
+const ACTIONS = [
+  "ALL",
+  "LOGIN",
+  "LOGOUT",
+  "RECORD_VIEW",
+  "RECORD_CREATE",
+  "VITALS_SUBMIT",
+  "APPOINTMENT_CREATE",
+  "ROLE_ASSIGN",
+  "BREAK_GLASS_ACCESS",
+  "UNAUTHORIZED_ATTEMPT",
+];
+
 export default function AdminAuditPage() {
-  const [logs, setLogs]   = useState<AuditLog[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage]   = useState(1);
+  const [page, setPage] = useState(1);
   const [action, setAction] = useState("ALL");
   const [loading, setLoading] = useState(true);
-  const PAGE_SIZE = 50;
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await adminApi.getAuditLogs(page, action !== "ALL" ? action : undefined) as {
-      data: AuditLog[]; total: number;
-    };
+    const res = (await adminApi.getAuditLogs(
+      page,
+      action !== "ALL" ? action : undefined,
+    )) as { data: AuditLog[]; total: number };
     setLogs(res.data || []);
     setTotal(res.total || 0);
     setLoading(false);
   }, [page, action]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(total / 50);
 
   return (
-    <div className="p-8 max-w-6xl">
-      <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-        <ShieldCheck className="w-6 h-6 text-brand-600" />
-        Compliance Audit Log
-      </h1>
-      <p className="text-gray-500 text-sm mb-6">
-        Immutable record of all platform activity. Required under HIPAA §164.312(b) and Kenya DPA §41.
-      </p>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <Filter className="w-4 h-4 text-gray-400" />
-        <div className="flex gap-2 flex-wrap">
-          {ACTION_OPTIONS.map((a) => (
-            <button
-              key={a}
-              onClick={() => { setAction(a); setPage(1); }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                action === a ? "bg-brand-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              {a}
-            </button>
-          ))}
-        </div>
+    <div style={{ padding: "1.75rem 2rem" }}>
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h1
+          style={{
+            fontSize: "1.4rem",
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+          }}
+        >
+          <ShieldCheck size={20} color="var(--accent-green)" />
+          Compliance Audit Log
+        </h1>
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.8rem",
+            marginTop: "0.25rem",
+          }}
+        >
+          Immutable record of all platform activity · HIPAA §164.312(b) · Kenya
+          DPA §41
+        </p>
       </div>
 
-      <div className="text-xs text-gray-400 mb-3">{total} total events</div>
+      {/* Filters */}
+      <div
+        style={{
+          display: "flex",
+          gap: "6px",
+          flexWrap: "wrap",
+          marginBottom: "1.25rem",
+        }}
+      >
+        {ACTIONS.map((a) => (
+          <button
+            key={a}
+            onClick={() => {
+              setAction(a);
+              setPage(1);
+            }}
+            style={{
+              padding: "0.3rem 0.75rem",
+              borderRadius: "99px",
+              fontSize: "0.72rem",
+              fontWeight: 500,
+              cursor: "pointer",
+              border: "1px solid",
+              background: action === a ? "var(--accent-green)" : "transparent",
+              color:
+                action === a ? "var(--text-inverse)" : "var(--text-secondary)",
+              borderColor:
+                action === a ? "var(--accent-green)" : "var(--border-strong)",
+            }}
+          >
+            {a}
+          </button>
+        ))}
+      </div>
 
-      {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                <th className="px-4 py-3">Timestamp</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Table</th>
-                <th className="px-4 py-3">Actor UUID</th>
-                <th className="px-4 py-3">IP</th>
-                <th className="px-4 py-3">Metadata</th>
+      <div
+        style={{
+          fontSize: "0.75rem",
+          color: "var(--text-muted)",
+          marginBottom: "0.75rem",
+        }}
+      >
+        {total} total events
+      </div>
+
+      <div
+        style={{
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-lg)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>Role</th>
+                <th>Table</th>
+                <th>Actor UUID</th>
+                <th>IP</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+                <tr>
+                  <td
+                    colSpan={6}
+                    style={{
+                      textAlign: "center",
+                      padding: "2.5rem",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    <div className="spinner" style={{ margin: "0 auto" }} />
+                  </td>
+                </tr>
               ) : logs.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No events found.</td></tr>
+                <tr>
+                  <td
+                    colSpan={6}
+                    style={{
+                      textAlign: "center",
+                      padding: "2.5rem",
+                      color: "var(--text-muted)",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    No events found
+                  </td>
+                </tr>
               ) : (
                 logs.map((l) => (
-                  <tr key={l.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap text-xs">
-                      {format(new Date(l.created_at), "MMM d, HH:mm:ss")}
+                  <tr key={l.id}>
+                    <td
+                      style={{
+                        fontSize: "0.78rem",
+                        color: "var(--text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {format(new Date(l.created_at), "d MMM, HH:mm:ss")}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`badge ${ACTION_COLORS[l.action] || "bg-gray-50 text-gray-600"}`}>
+                    <td>
+                      <span
+                        className={`badge ${
+                          ACTION_STYLES[l.action] || "badge-muted"
+                        }`}
+                      >
                         {l.action}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{l.actor_role || "—"}</td>
-                    <td className="px-4 py-3 text-gray-400">{l.target_table || "—"}</td>
-                    <td className="px-4 py-3 text-gray-400 font-mono text-xs">
-                      {l.actor_id ? l.actor_id.slice(0, 12) + "…" : "anonymous"}
+                    <td
+                      style={{
+                        color: "var(--text-secondary)",
+                        fontSize: "0.83rem",
+                      }}
+                    >
+                      {l.actor_role || "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{l.ip_address || "—"}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate">
-                      {Object.keys(l.metadata).length > 0 ? JSON.stringify(l.metadata) : "—"}
+                    <td
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: "0.78rem",
+                      }}
+                    >
+                      {l.target_table || "—"}
+                    </td>
+                    <td
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {l.actor_id ? l.actor_id.slice(0, 12) + "…" : "anon"}
+                    </td>
+                    <td
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {l.ip_address || "—"}
                     </td>
                   </tr>
                 ))
@@ -121,25 +236,37 @@ export default function AdminAuditPage() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-400">Page {page} of {totalPages}</span>
-            <div className="flex gap-2">
+          <div
+            style={{
+              padding: "0.875rem 1rem",
+              borderTop: "1px solid var(--border-subtle)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Page {page} of {totalPages}
+            </span>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
+                className="btn-secondary"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="btn-secondary py-1 px-2 text-xs flex items-center gap-1 disabled:opacity-40"
+                style={{ padding: "0.4rem 0.75rem", fontSize: "0.78rem" }}
               >
-                <ChevronLeft className="w-3 h-3" /> Prev
+                <ChevronLeft size={13} />
+                Prev
               </button>
               <button
+                className="btn-secondary"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="btn-secondary py-1 px-2 text-xs flex items-center gap-1 disabled:opacity-40"
+                style={{ padding: "0.4rem 0.75rem", fontSize: "0.78rem" }}
               >
-                Next <ChevronRight className="w-3 h-3" />
+                Next
+                <ChevronRight size={13} />
               </button>
             </div>
           </div>

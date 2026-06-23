@@ -6,18 +6,18 @@ import { FileText, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 
 const CATEGORY_COLORS: Record<string, string> = {
-  LAB_RESULT:    "bg-blue-50 text-blue-700",
-  CLINICAL_NOTE: "bg-gray-50 text-gray-700",
-  DIAGNOSIS:     "bg-red-50 text-red-700",
-  PRESCRIPTION:  "bg-purple-50 text-purple-700",
-  ALLERGY:       "bg-orange-50 text-orange-700",
+  LAB_RESULT: "badge-blue",
+  CLINICAL_NOTE: "badge-muted",
+  DIAGNOSIS: "badge-red",
+  PRESCRIPTION: "badge-green",
+  ALLERGY: "badge-amber",
 };
 
 export default function PatientRecordsPage() {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter]   = useState("ALL");
 
   useEffect(() => {
     recordsApi.getMy().then((data) => {
@@ -26,72 +26,211 @@ export default function PatientRecordsPage() {
     });
   }, []);
 
-  const categories = ["ALL", "LAB_RESULT", "CLINICAL_NOTE", "DIAGNOSIS", "PRESCRIPTION", "ALLERGY"];
-  const filtered = filter === "ALL" ? records : records.filter((r) => r.category === filter);
+  const categories = [
+    "ALL",
+    "LAB_RESULT",
+    "CLINICAL_NOTE",
+    "DIAGNOSIS",
+    "PRESCRIPTION",
+    "ALLERGY",
+  ];
+  const filtered =
+    filter === "ALL" ? records : records.filter((r) => r.category === filter);
 
   return (
-    <div className="p-8 max-w-4xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-brand-600" />
+    <div style={{ padding: "1.75rem 2rem", maxWidth: "800px" }}>
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h1
+          style={{
+            fontSize: "1.4rem",
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+          }}
+        >
+          <FileText size={20} color="var(--accent-green)" />
           My Medical Records
         </h1>
-        <div className="flex items-center gap-2 mt-1">
-          <Lock className="w-3.5 h-3.5 text-gray-400" />
-          <p className="text-gray-500 text-sm">Read-only view. Records are managed by your healthcare provider.</p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            marginTop: "0.3rem",
+          }}
+        >
+          <Lock size={11} color="var(--text-muted)" />
+          <p
+            style={{
+              color: "var(--text-muted)",
+              fontSize: "0.78rem",
+              margin: 0,
+            }}
+          >
+            Read-only — records are managed by your healthcare provider
+          </p>
         </div>
       </div>
 
-      {/* Category filter */}
-      <div className="flex gap-2 flex-wrap mb-6">
+      {/* Filter pills */}
+      <div
+        style={{
+          display: "flex",
+          gap: "6px",
+          flexWrap: "wrap",
+          marginBottom: "1.25rem",
+        }}
+      >
         {categories.map((c) => (
           <button
             key={c}
             onClick={() => setFilter(c)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-              filter === c ? "bg-brand-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-            }`}
+            style={{
+              padding: "0.35rem 0.875rem",
+              borderRadius: "99px",
+              fontSize: "0.75rem",
+              fontWeight: 500,
+              cursor: "pointer",
+              border: "1px solid",
+              transition: "all 0.15s",
+              background: filter === c ? "var(--accent-green)" : "transparent",
+              color:
+                filter === c ? "var(--text-inverse)" : "var(--text-secondary)",
+              borderColor:
+                filter === c ? "var(--accent-green)" : "var(--border-strong)",
+            }}
           >
-            {c.replace("_", " ")}
+            {c.replace(/_/g, " ")}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <p className="text-gray-400">Loading records…</p>
+        <div
+          style={{ display: "flex", justifyContent: "center", padding: "3rem" }}
+        >
+          <div className="spinner" />
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="card text-center py-12">
-          <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400">No records found.</p>
+        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
+          <FileText
+            size={32}
+            color="var(--text-muted)"
+            style={{ margin: "0 auto 0.75rem" }}
+          />
+          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+            No records found
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {filtered.map((r) => (
-            <div key={r.id} className="card p-0 overflow-hidden">
+            <div
+              key={r.id}
+              style={{
+                background: "var(--surface-card)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-lg)",
+                overflow: "hidden",
+              }}
+            >
               <button
-                className="w-full text-left px-6 py-4 flex items-start justify-between hover:bg-gray-50 transition-colors"
                 onClick={() => setExpanded(expanded === r.id ? null : r.id)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "1rem 1.25rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                }}
               >
-                <div className="flex items-start gap-3">
-                  <span className={`badge mt-0.5 ${CATEGORY_COLORS[r.category] || "bg-gray-50 text-gray-700"}`}>
-                    {r.category.replace("_", " ")}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    className={`badge ${
+                      CATEGORY_COLORS[r.category] || "badge-muted"
+                    }`}
+                  >
+                    {r.category.replace(/_/g, " ")}
                   </span>
-                  <div>
-                    <p className="font-medium text-gray-900">{r.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {format(new Date(r.created_at), "MMMM d, yyyy 'at' h:mm a")}
-                    </p>
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 500,
+                        fontSize: "0.875rem",
+                        color: "var(--text-primary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {r.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.72rem",
+                        color: "var(--text-muted)",
+                        marginTop: "0.15rem",
+                      }}
+                    >
+                      {format(
+                        new Date(r.created_at),
+                        "d MMMM yyyy 'at' h:mm a",
+                      )}
+                    </div>
                   </div>
                 </div>
-                {expanded === r.id
-                  ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                  : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                }
+                {expanded === r.id ? (
+                  <ChevronUp
+                    size={15}
+                    color="var(--text-muted)"
+                    style={{ flexShrink: 0 }}
+                  />
+                ) : (
+                  <ChevronDown
+                    size={15}
+                    color="var(--text-muted)"
+                    style={{ flexShrink: 0 }}
+                  />
+                )}
               </button>
-
               {expanded === r.id && (
-                <div className="px-6 pb-5 border-t border-gray-50">
-                  <pre className="mt-3 text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-4 font-sans">
+                <div
+                  style={{
+                    padding: "0 1.25rem 1.25rem",
+                    borderTop: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  <pre
+                    style={{
+                      marginTop: "1rem",
+                      fontFamily: "inherit",
+                      fontSize: "0.85rem",
+                      color: "var(--text-secondary)",
+                      whiteSpace: "pre-wrap",
+                      lineHeight: 1.6,
+                      background: "var(--surface-input)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "1rem",
+                      margin: 0,
+                    }}
+                  >
                     {r.content}
                   </pre>
                 </div>
