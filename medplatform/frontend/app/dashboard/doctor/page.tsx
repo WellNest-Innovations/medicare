@@ -4,128 +4,339 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { appointmentsApi } from "@/lib/api";
 import { Appointment, Profile } from "@/types";
-import { Users, Calendar, ClipboardList, Clock } from "lucide-react";
-import { format } from "date-fns";
+import {
+  Users,
+  Calendar,
+  Clock,
+  ChevronRight,
+  Stethoscope,
+} from "lucide-react";
+import { format, isToday } from "date-fns";
 import Link from "next/link";
 
 export default function DoctorOverview() {
   const { profile } = useAuth();
-  const [patients, setPatients]   = useState<Profile[]>([]);
-  const [appointments, setAppts]  = useState<Appointment[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [patients, setPatients] = useState<Profile[]>([]);
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [appts, assignRes] = await Promise.all([
+      if (!profile?.id) return;
+      const [apptData, assignRes] = await Promise.all([
         appointmentsApi.getMy() as Promise<Appointment[]>,
         supabase
           .from("doctor_patient_assignments")
-          .select("patient_id, profiles!patient_id(id, full_name, blood_type, known_allergies)")
-          .eq("doctor_id", profile?.id)
+          .select(
+            "profiles!patient_id(id, full_name, blood_type, known_allergies, phone_number)",
+          )
+          .eq("doctor_id", profile.id)
           .eq("is_active", true),
       ]);
-      setAppts(appts);
-      const pts = (assignRes.data || []).map((r: Record<string, unknown>) => r.profiles as Profile);
-      setPatients(pts.filter(Boolean));
+      setAppts(apptData);
+      const pts = (assignRes.data || [])
+        .map((r: Record<string, unknown>) => r.profiles as Profile)
+        .filter(Boolean);
+      setPatients(pts);
       setLoading(false);
     }
-    if (profile?.id) load();
+    load();
   }, [profile]);
 
-  const todayAppts = appointments.filter((a) => {
-    const d = new Date(a.scheduled_at);
-    const now = new Date();
-    return d.toDateString() === now.toDateString() && a.status !== "CANCELLED";
+  const todayAppts = appts.filter((a) => {
+    return isToday(new Date(a.scheduled_at)) && a.status !== "CANCELLED";
   });
 
-  if (loading) return <div className="p-8 text-gray-400">Loading…</div>;
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  if (loading)
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "60vh",
+        }}
+      >
+        <div className="spinner" />
+      </div>
+    );
 
   return (
-    <div className="p-8 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">
-        Welcome, {profile?.full_name} 👨‍⚕️
-      </h1>
-      <p className="text-gray-500 mb-8">Your clinical overview for today</p>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <StatCard icon={<Users className="w-5 h-5 text-brand-600" />} label="Assigned Patients" value={patients.length} />
-        <StatCard icon={<Calendar className="w-5 h-5 text-green-600" />} label="Today's Appointments" value={todayAppts.length} />
-        <StatCard icon={<ClipboardList className="w-5 h-5 text-purple-600" />} label="Total Appointments" value={appointments.length} />
+    <div style={{ padding: "1.75rem 2rem", maxWidth: "960px" }}>
+      <div style={{ marginBottom: "1.75rem" }}>
+        <h1
+          style={{
+            fontSize: "1.4rem",
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            margin: 0,
+          }}
+        >
+          {greeting}, Dr. {profile?.full_name?.split(" ").slice(-1)[0]} 👨‍⚕️
+        </h1>
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.83rem",
+            marginTop: "0.25rem",
+          }}
+        >
+          Clinical overview for today
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Stats strip */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3,1fr)",
+          gap: "0.875rem",
+          marginBottom: "1.75rem",
+        }}
+      >
+        {[
+          {
+            icon: <Users size={16} color="var(--accent-blue)" />,
+            label: "Assigned Patients",
+            value: patients.length,
+            color: "var(--accent-blue)",
+          },
+          {
+            icon: <Calendar size={16} color="var(--accent-green)" />,
+            label: "Today's Appointments",
+            value: todayAppts.length,
+            color: "var(--accent-green)",
+          },
+          {
+            icon: <Clock size={16} color="var(--accent-amber)" />,
+            label: "Total Appointments",
+            value: appts.length,
+            color: "var(--accent-amber)",
+          },
+        ].map((s) => (
+          <div key={s.label} className="stat-card">
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                background: `${s.color}18`,
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: "0.5rem",
+              }}
+            >
+              {s.icon}
+            </div>
+            <div className="stat-value">{s.value}</div>
+            <div className="stat-label">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
+      >
         {/* Today's schedule */}
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-400" />
-              Today&apos;s Schedule
-            </h2>
-            <Link href="/dashboard/doctor/appointments" className="text-xs text-brand-600 hover:underline">View all</Link>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.83rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+              }}
+            >
+              TODAY'S SCHEDULE
+            </span>
+            <Link
+              href="/dashboard/doctor/appointments"
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--accent-green)",
+                textDecoration: "none",
+              }}
+            >
+              View all
+            </Link>
           </div>
           {todayAppts.length === 0 ? (
-            <p className="text-sm text-gray-400">No appointments today.</p>
+            <p style={{ fontSize: "0.83rem", color: "var(--text-muted)" }}>
+              No appointments today
+            </p>
           ) : (
-            <div className="space-y-3">
-              {todayAppts.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                  <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{a.chief_complaint}</p>
-                    <p className="text-xs text-gray-400">{format(new Date(a.scheduled_at), "h:mm a")} · {a.location}</p>
-                  </div>
-                  <span className={`badge text-xs ${a.status === "CONFIRMED" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
-                    {a.status}
-                  </span>
+            todayAppts.map((a) => (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  padding: "0.625rem 0",
+                  borderBottom: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    background: "rgba(74,222,128,0.1)",
+                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Clock size={14} color="var(--accent-green)" />
                 </div>
-              ))}
-            </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "0.83rem",
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {a.chief_complaint}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--text-muted)",
+                      marginTop: "0.1rem",
+                    }}
+                  >
+                    {format(new Date(a.scheduled_at), "h:mm a")} · {a.location}
+                  </div>
+                </div>
+                <span
+                  className={`badge ${
+                    a.status === "CONFIRMED" ? "badge-green" : "badge-amber"
+                  }`}
+                >
+                  {a.status}
+                </span>
+              </div>
+            ))
           )}
         </div>
 
         {/* Patient list */}
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4 text-gray-400" />
-              My Patients
-            </h2>
-            <Link href="/dashboard/doctor/patients" className="text-xs text-brand-600 hover:underline">View all</Link>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.83rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+              }}
+            >
+              MY PATIENTS
+            </span>
+            <Link
+              href="/dashboard/doctor/patients"
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--accent-green)",
+                textDecoration: "none",
+              }}
+            >
+              View all
+            </Link>
           </div>
           {patients.length === 0 ? (
-            <p className="text-sm text-gray-400">No patients assigned yet.</p>
+            <p style={{ fontSize: "0.83rem", color: "var(--text-muted)" }}>
+              No patients assigned yet
+            </p>
           ) : (
-            <div className="space-y-2">
-              {patients.slice(0, 5).map((p) => (
-                <Link key={p.id} href={`/dashboard/doctor/patients/${p.id}`}
-                  className="flex items-center gap-3 py-2 px-2 hover:bg-gray-50 rounded-lg transition-colors">
-                  <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 font-bold text-sm flex-shrink-0">
-                    {p.full_name?.[0]}
+            patients.slice(0, 5).map((p) => (
+              <Link
+                key={p.id}
+                href={`/dashboard/doctor/patients/${p.id}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  padding: "0.5rem 0.625rem",
+                  borderRadius: "8px",
+                  textDecoration: "none",
+                  transition: "background 0.15s",
+                  marginBottom: "2px",
+                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.background =
+                    "var(--surface-hover)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.background =
+                    "transparent")
+                }
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: "rgba(74,222,128,0.12)",
+                    border: "1px solid rgba(74,222,128,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.83rem",
+                    fontWeight: 700,
+                    color: "var(--accent-green)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {p.full_name?.[0]}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "0.83rem",
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.full_name}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{p.full_name}</p>
-                    <p className="text-xs text-gray-400">Blood type: {p.blood_type || "Unknown"}</p>
+                  <div
+                    style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}
+                  >
+                    Blood: {p.blood_type || "Unknown"}
                   </div>
-                </Link>
-              ))}
-            </div>
+                </div>
+                <ChevronRight size={14} color="var(--text-muted)" />
+              </Link>
+            ))
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="card flex items-center gap-4">
-      <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center flex-shrink-0">{icon}</div>
-      <div>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        <p className="text-xs text-gray-400">{label}</p>
       </div>
     </div>
   );

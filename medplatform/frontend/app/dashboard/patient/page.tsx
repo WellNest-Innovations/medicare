@@ -3,17 +3,26 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { vitalsApi, recordsApi, appointmentsApi } from "@/lib/api";
 import { VitalLog, MedicalRecord, Appointment } from "@/types";
-import { Activity, FileText, Calendar, AlertCircle, Heart, Droplets, Wind } from "lucide-react";
+import {
+  Activity,
+  FileText,
+  Calendar,
+  Heart,
+  Droplets,
+  Wind,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 
 export default function PatientOverview() {
   const { profile } = useAuth();
-  const [vitals, setVitals]         = useState<VitalLog[]>([]);
-  const [records, setRecords]       = useState<MedicalRecord[]>([]);
-  const [appointments, setAppts]    = useState<Appointment[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState("");
+  const [vitals, setVitals] = useState<VitalLog[]>([]);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -23,9 +32,11 @@ export default function PatientOverview() {
           recordsApi.getMy() as Promise<MedicalRecord[]>,
           appointmentsApi.getMy() as Promise<Appointment[]>,
         ]);
-        setVitals(v); setRecords(r); setAppts(a);
+        setVitals(v);
+        setRecords(r);
+        setAppts(a);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Failed to load");
+        setError(e instanceof Error ? e.message : "Failed to load data");
       } finally {
         setLoading(false);
       }
@@ -35,105 +46,389 @@ export default function PatientOverview() {
 
   const latestVital = (type: VitalLog["vital_type"]) =>
     vitals.find((v) => v.vital_type === type);
-
-  const upcomingAppts = appointments.filter(
-    (a) => a.status !== "CANCELLED" && new Date(a.scheduled_at) > new Date()
+  const upcoming = appts.filter(
+    (a) => a.status !== "CANCELLED" && new Date(a.scheduled_at) > new Date(),
   );
 
-  if (loading) return <div className="p-8 text-gray-400">Loading…</div>;
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  if (loading)
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "60vh",
+        }}
+      >
+        <div className="spinner" />
+      </div>
+    );
 
   return (
-    <div className="p-8 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">
-        Good morning, {profile?.full_name?.split(" ")[0]} 👋
-      </h1>
-      <p className="text-gray-500 mb-8">Here's your health overview</p>
+    <div style={{ padding: "1.75rem 2rem", maxWidth: "900px" }}>
+      <div style={{ marginBottom: "1.75rem" }}>
+        <h1
+          style={{
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            margin: 0,
+          }}
+        >
+          {greeting}, {profile?.full_name?.split(" ")[0]} 👋
+        </h1>
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.875rem",
+            marginTop: "0.25rem",
+          }}
+        >
+          Here is your health overview
+        </p>
+      </div>
 
       {error && (
-        <div className="flex items-center gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
-          <AlertCircle className="w-4 h-4" />
+        <div className="alert-error" style={{ marginBottom: "1.5rem" }}>
+          <AlertCircle size={15} />
           {error}
         </div>
       )}
 
-      {/* Vitals summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      {/* Vitals strip */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3,1fr)",
+          gap: "0.875rem",
+          marginBottom: "1.5rem",
+        }}
+      >
         <VitalCard
-          icon={<Heart className="w-5 h-5 text-rose-500" />}
+          icon={<Heart size={17} color="var(--accent-red)" />}
           label="Heart Rate"
           vital={latestVital("HEART_RATE")}
-          color="rose"
+          accentColor="var(--accent-red)"
         />
         <VitalCard
-          icon={<Droplets className="w-5 h-5 text-blue-500" />}
+          icon={<Droplets size={17} color="var(--accent-blue)" />}
           label="Blood Glucose"
           vital={latestVital("BLOOD_GLUCOSE")}
-          color="blue"
+          accentColor="var(--accent-blue)"
         />
         <VitalCard
-          icon={<Wind className="w-5 h-5 text-emerald-500" />}
-          label="O₂ Saturation"
+          icon={<Wind size={17} color="var(--accent-teal)" />}
+          label="SpO₂"
           vital={latestVital("OXYGEN_SATURATION")}
-          color="emerald"
+          accentColor="var(--accent-teal)"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent records */}
+      {/* Quick actions */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "0.875rem",
+          marginBottom: "1.5rem",
+        }}
+      >
+        <Link
+          href="/dashboard/patient/vitals"
+          style={{ textDecoration: "none" }}
+        >
+          <div
+            style={{
+              background: "rgba(74,222,128,0.08)",
+              border: "1px solid rgba(74,222,128,0.2)",
+              borderRadius: "14px",
+              padding: "1rem 1.25rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.875rem",
+              cursor: "pointer",
+            }}
+          >
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                background: "rgba(74,222,128,0.15)",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Activity size={18} color="var(--accent-green)" />
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                }}
+              >
+                Log Vitals
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                Record a reading
+              </div>
+            </div>
+          </div>
+        </Link>
+        <Link
+          href="/dashboard/patient/appointments"
+          style={{ textDecoration: "none" }}
+        >
+          <div
+            style={{
+              background: "rgba(96,165,250,0.08)",
+              border: "1px solid rgba(96,165,250,0.2)",
+              borderRadius: "14px",
+              padding: "1rem 1.25rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.875rem",
+              cursor: "pointer",
+            }}
+          >
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                background: "rgba(96,165,250,0.15)",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Calendar size={18} color="var(--accent-blue)" />
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                }}
+              >
+                Book Appointment
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                See a provider
+              </div>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* Bottom grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "0.875rem",
+        }}
+      >
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <FileText className="w-4 h-4 text-gray-400" />
-              Recent Records
-            </h2>
-            <Link href="/dashboard/patient/records" className="text-xs text-brand-600 hover:underline">View all</Link>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <FileText size={12} />
+              RECENT RECORDS
+            </span>
+            <Link
+              href="/dashboard/patient/records"
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--accent-green)",
+                textDecoration: "none",
+              }}
+            >
+              View all
+            </Link>
           </div>
           {records.length === 0 ? (
-            <p className="text-sm text-gray-400">No records yet.</p>
+            <p style={{ fontSize: "0.83rem", color: "var(--text-muted)" }}>
+              No records yet
+            </p>
           ) : (
-            <div className="space-y-2">
-              {records.slice(0, 4).map((r) => (
-                <div key={r.id} className="flex items-start justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{r.title}</p>
-                    <p className="text-xs text-gray-400">{r.category} · {format(new Date(r.created_at), "MMM d, yyyy")}</p>
+            records.slice(0, 4).map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  paddingBottom: "0.625rem",
+                  marginBottom: "0.625rem",
+                  borderBottom: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: "0.83rem",
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {r.title}
                   </div>
-                  <span className="badge bg-blue-50 text-blue-700">{r.category}</span>
+                  <div
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--text-muted)",
+                      marginTop: "0.15rem",
+                    }}
+                  >
+                    {format(new Date(r.created_at), "d MMM yyyy")}
+                  </div>
                 </div>
-              ))}
-            </div>
+                <span
+                  className="badge badge-blue"
+                  style={{ flexShrink: 0, marginLeft: "0.5rem" }}
+                >
+                  {r.category.replace(/_/g, " ")}
+                </span>
+              </div>
+            ))
           )}
         </div>
 
-        {/* Upcoming appointments */}
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              Upcoming Appointments
-            </h2>
-            <Link href="/dashboard/patient/appointments" className="text-xs text-brand-600 hover:underline">Book new</Link>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <Calendar size={12} />
+              UPCOMING
+            </span>
+            <Link
+              href="/dashboard/patient/appointments"
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--accent-green)",
+                textDecoration: "none",
+              }}
+            >
+              Book new
+            </Link>
           </div>
-          {upcomingAppts.length === 0 ? (
-            <p className="text-sm text-gray-400">No upcoming appointments.</p>
+          {upcoming.length === 0 ? (
+            <p style={{ fontSize: "0.83rem", color: "var(--text-muted)" }}>
+              No upcoming appointments
+            </p>
           ) : (
-            <div className="space-y-3">
-              {upcomingAppts.slice(0, 3).map((a) => (
-                <div key={a.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
-                  <div className="w-10 h-10 bg-brand-50 rounded-lg flex flex-col items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-brand-700">{format(new Date(a.scheduled_at), "d")}</span>
-                    <span className="text-xs text-brand-500">{format(new Date(a.scheduled_at), "MMM")}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{a.chief_complaint}</p>
-                    <p className="text-xs text-gray-400">{format(new Date(a.scheduled_at), "h:mm a")} · {a.location}</p>
-                  </div>
-                  <span className={`badge ml-auto ${
-                    a.status === "CONFIRMED" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
-                  }`}>{a.status}</span>
+            upcoming.slice(0, 3).map((a) => (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "flex-start",
+                  paddingBottom: "0.75rem",
+                  marginBottom: "0.75rem",
+                  borderBottom: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    background: "var(--surface-input)",
+                    borderRadius: "8px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.95rem",
+                      fontWeight: 700,
+                      color: "var(--accent-green)",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {format(new Date(a.scheduled_at), "d")}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "var(--text-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {format(new Date(a.scheduled_at), "MMM")}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "0.83rem",
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {a.chief_complaint}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--text-muted)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      marginTop: "0.2rem",
+                    }}
+                  >
+                    <Clock size={10} />
+                    {format(new Date(a.scheduled_at), "h:mm a")} · {a.location}
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -141,32 +436,97 @@ export default function PatientOverview() {
   );
 }
 
-function VitalCard({ icon, label, vital, color }: {
+function VitalCard({
+  icon,
+  label,
+  vital,
+  accentColor,
+}: {
   icon: React.ReactNode;
   label: string;
   vital?: VitalLog;
-  color: string;
+  accentColor: string;
 }) {
   return (
-    <div className="card flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl bg-${color}-50 flex items-center justify-center flex-shrink-0`}>
-        {icon}
+    <div
+      style={{
+        background: "var(--surface-card)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "14px",
+        padding: "1rem",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          marginBottom: "0.6rem",
+        }}
+      >
+        <div
+          style={{
+            width: "30px",
+            height: "30px",
+            background: `${accentColor}18`,
+            borderRadius: "7px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </div>
+        <span
+          style={{
+            fontSize: "0.72rem",
+            color: "var(--text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {label}
+        </span>
       </div>
-      <div>
-        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-        {vital ? (
-          <>
-            <p className="text-xl font-bold text-gray-900">
-              {vital.value_primary}
-              {vital.value_secondary ? `/${vital.value_secondary}` : ""}
-              <span className="text-sm font-normal text-gray-400 ml-1">{vital.unit}</span>
-            </p>
-            <p className="text-xs text-gray-400">{format(new Date(vital.measured_at), "MMM d")}</p>
-          </>
-        ) : (
-          <p className="text-sm text-gray-400">No data</p>
-        )}
-      </div>
+      {vital ? (
+        <>
+          <div
+            style={{
+              fontSize: "1.6rem",
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              lineHeight: 1,
+            }}
+          >
+            {vital.value_primary}
+            {vital.value_secondary ? `/${vital.value_secondary}` : ""}
+            <span
+              style={{
+                fontSize: "0.8rem",
+                fontWeight: 400,
+                color: "var(--text-muted)",
+                marginLeft: "0.25rem",
+              }}
+            >
+              {vital.unit}
+            </span>
+          </div>
+          <div
+            style={{
+              fontSize: "0.7rem",
+              color: "var(--text-muted)",
+              marginTop: "0.25rem",
+            }}
+          >
+            {format(new Date(vital.measured_at), "d MMM, h:mm a")}
+          </div>
+        </>
+      ) : (
+        <div style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>
+          No data yet
+        </div>
+      )}
     </div>
   );
 }

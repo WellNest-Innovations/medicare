@@ -6,25 +6,31 @@ import { Appointment, Profile } from "@/types";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
 
+const STATUS_STYLES: Record<string, string> = {
+  PENDING: "badge-amber",
+  CONFIRMED: "badge-green",
+  COMPLETED: "badge-muted",
+  CANCELLED: "badge-red",
+};
+
 export default function DoctorAppointmentsPage() {
-  const [appointments, setAppts] = useState<Appointment[]>([]);
+  const [appts, setAppts] = useState<Appointment[]>([]);
   const [patientMap, setPatientMap] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"UPCOMING" | "TODAY" | "ALL">("TODAY");
+  const [filter, setFilter] = useState<"TODAY" | "UPCOMING" | "ALL">("TODAY");
 
   useEffect(() => {
     async function load() {
-      const appts = (await appointmentsApi.getMy()) as Appointment[];
-      setAppts(appts);
-      const ids = [...new Set(appts.map((a) => a.patient_id))];
+      const data = (await appointmentsApi.getMy()) as Appointment[];
+      setAppts(data);
+      const ids = [...new Set(data.map((a) => a.patient_id))];
       if (ids.length) {
-        const { data } = await supabase
+        const { data: profiles } = await supabase
           .from("profiles")
           .select("id, full_name, phone_number")
           .in("id", ids);
-
         const map: Record<string, Profile> = {};
-        (data || []).forEach(
+        (profiles || []).forEach(
           (p: {
             id: string;
             full_name: string;
@@ -40,7 +46,7 @@ export default function DoctorAppointmentsPage() {
     load();
   }, []);
 
-  const filtered = appointments.filter((a) => {
+  const filtered = appts.filter((a) => {
     if (a.status === "CANCELLED") return false;
     const d = new Date(a.scheduled_at);
     if (filter === "TODAY") return isToday(d);
@@ -48,38 +54,50 @@ export default function DoctorAppointmentsPage() {
     return true;
   });
 
-  const STATUS_COLORS: Record<string, string> = {
-    PENDING: "bg-yellow-50 text-yellow-700",
-    CONFIRMED: "bg-green-50 text-green-700",
-    COMPLETED: "bg-gray-50 text-gray-600",
-    CANCELLED: "bg-red-50 text-red-600",
-  };
-
   function dateLabel(dateStr: string) {
     const d = new Date(dateStr);
     if (isToday(d)) return "Today";
     if (isTomorrow(d)) return "Tomorrow";
-    return format(d, "EEE, MMM d");
+    return format(d, "EEE, d MMM");
   }
 
   return (
-    <div className="p-8 max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-6">
-        <Calendar className="w-6 h-6 text-brand-600" />
-        My Schedule
-      </h1>
+    <div style={{ padding: "1.75rem 2rem", maxWidth: "800px" }}>
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h1
+          style={{
+            fontSize: "1.4rem",
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+          }}
+        >
+          <Calendar size={20} color="var(--accent-green)" />
+          My Schedule
+        </h1>
+      </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-6">
+      <div style={{ display: "flex", gap: "6px", marginBottom: "1.25rem" }}>
         {(["TODAY", "UPCOMING", "ALL"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              filter === f
-                ? "bg-brand-600 text-white"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-            }`}
+            style={{
+              padding: "0.35rem 1rem",
+              borderRadius: "99px",
+              fontSize: "0.78rem",
+              fontWeight: 500,
+              cursor: "pointer",
+              border: "1px solid",
+              background: filter === f ? "var(--accent-green)" : "transparent",
+              color:
+                filter === f ? "var(--text-inverse)" : "var(--text-secondary)",
+              borderColor:
+                filter === f ? "var(--accent-green)" : "var(--border-strong)",
+            }}
           >
             {f === "TODAY" ? "Today" : f === "UPCOMING" ? "Upcoming" : "All"}
           </button>
@@ -87,51 +105,138 @@ export default function DoctorAppointmentsPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400">Loading…</p>
+        <div
+          style={{ display: "flex", justifyContent: "center", padding: "3rem" }}
+        >
+          <div className="spinner" />
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="card text-center py-12">
-          <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400">No appointments for this filter.</p>
+        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
+          <Calendar
+            size={32}
+            color="var(--text-muted)"
+            style={{ margin: "0 auto 0.75rem" }}
+          />
+          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+            No appointments for this filter
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {filtered.map((a) => {
             const patient = patientMap[a.patient_id];
             return (
-              <div key={a.id} className="card flex items-center gap-4">
-                <div className="w-14 h-14 bg-brand-50 rounded-xl flex flex-col items-center justify-center flex-shrink-0 text-center">
-                  <span className="text-lg font-bold text-brand-700 leading-none">
+              <div
+                key={a.id}
+                className="card"
+                style={{ display: "flex", alignItems: "center", gap: "1rem" }}
+              >
+                <div
+                  style={{
+                    width: "46px",
+                    height: "46px",
+                    background: "var(--surface-input)",
+                    borderRadius: "10px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "1rem",
+                      fontWeight: 700,
+                      color: "var(--accent-green)",
+                      lineHeight: 1,
+                    }}
+                  >
                     {format(new Date(a.scheduled_at), "d")}
                   </span>
-                  <span className="text-xs text-brand-400">
+                  <span
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "var(--text-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     {format(new Date(a.scheduled_at), "MMM")}
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "0.9rem",
+                        color: "var(--text-primary)",
+                      }}
+                    >
                       {patient?.full_name || "Patient"}
-                    </p>
-                    <span className="text-xs text-gray-400">
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
                       {dateLabel(a.scheduled_at)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-0.5 truncate">
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "var(--text-secondary)",
+                      marginTop: "0.15rem",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {a.chief_complaint}
-                  </p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <Clock className="w-3 h-3" />
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "1rem",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        fontSize: "0.72rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      <Clock size={10} />
                       {format(new Date(a.scheduled_at), "h:mm a")} ·{" "}
                       {a.duration_mins}min
                     </span>
-                    <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <MapPin className="w-3 h-3" />
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        fontSize: "0.72rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      <MapPin size={10} />
                       {a.location}
                     </span>
                   </div>
                 </div>
-                <span className={`badge ${STATUS_COLORS[a.status]}`}>
+                <span className={`badge ${STATUS_STYLES[a.status]}`}>
                   {a.status}
                 </span>
               </div>
