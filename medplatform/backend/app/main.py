@@ -2,9 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.routers import vitals, records, appointments, admin
-from app.routers import sms_auth
-app.include_router(sms_auth.router)
+from app.routers import vitals, records, appointments, admin, sms_auth
 
 app = FastAPI(
     title="MedPlatform API",
@@ -25,6 +23,7 @@ app.include_router(vitals.router)
 app.include_router(records.router)
 app.include_router(appointments.router)
 app.include_router(admin.router)
+app.include_router(sms_auth.router)
 
 
 @app.get("/health", tags=["System"])
