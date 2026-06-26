@@ -76,3 +76,21 @@ async def assign_doctor_to_patient(
         "assigned_by": token.sub,
     }).execute()
     return result.data[0]
+@router.post("/chv-assignments")
+async def assign_chv_to_patient(
+    chv_id:     str,
+    patient_id: str,
+    token:      TokenPayload = Depends(require_admin),
+):
+    """Admin assigns a CHV to a patient."""
+    result = supabase.table("chv_patient_assignments").insert({
+        "chv_id":      chv_id,
+        "patient_id":  patient_id,
+        "assigned_by": token.sub,
+    }).execute()
+    write_audit_log(
+        actor_id=token.sub, actor_role=token.app_role, action="ROLE_ASSIGN",
+        target_table="chv_patient_assignments",
+        metadata={"chv_id": chv_id, "patient_id": patient_id},
+    )
+    return result.data[0]
