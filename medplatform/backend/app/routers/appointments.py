@@ -70,3 +70,67 @@ async def list_doctors(token: TokenPayload = Depends(decode_token)):
         .execute()
     )
     return result.data
+
+@router.patch("/{appointment_id}/notes", response_model=AppointmentResponse)
+async def add_doctor_notes(
+    appointment_id: str,
+    notes:  str,
+    status: str = "COMPLETED",
+    token:  TokenPayload = Depends(require_doctor),
+):
+    """
+    Doctor adds post-consultation notes and marks appointment complete.
+    Only the assigned doctor for this appointment can add notes.
+    """
+    # Verify this appointment belongs to this doctor
+    existing = (
+        supabase.table("appointments")
+        .select("*")
+        .eq("id", appointment_id)
+        .eq("doctor_id", token.sub)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Appointment not found or you are not the assigned provider."
+        )
+
+    current_status = existing.data[0]["status"]
+    if current_status == "CANCELLED":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot add notes to a cancelled appointment."
+        )
+
+    # Validate status transition
+    valid_statuses = ("CONFIRMED", "IN_PROGRESS", "COMPLETED")
+    if status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Status must be one of: {valid_statuses}"
+        )
+
+    result = (
+        supabase.table("appointments")
+        .update({
+            "doctor_notes": notes,
+            "status":       status,
+        })
+        .eq("id", appointment_id)
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to save notes.")
+
+    write_audit_log(
+        actor_id=token.sub, actor_role=token.app_role,
+        action="APPOINTMENT_UPDATE",
+        target_table="appointments",
+        target_id=appointment_id,
+        metadata={"status": status, "has_notes": bool(notes)},
+    )
+
+    return AppointmentResponse(**result.data[0])
+
